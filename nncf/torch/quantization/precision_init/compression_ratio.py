@@ -1,5 +1,5 @@
 """
- Copyright (c) 2022 Intel Corporation
+ Copyright (c) 2020 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -28,7 +28,8 @@ class CompressionRatioCalculator:
 
     def __init__(self, flops_per_weighted_module_node: Dict[NNCFNodeName, int],
                  quantizer_setup: SingleConfigQuantizerSetup,
-                 weight_qp_id_per_activation_qp_id: Dict[QuantizationPointId, QuantizationPointId]):
+                 weight_qp_id_per_activation_qp_id: Dict[QuantizationPointId, QuantizationPointId],
+                 accelerated_nodes_dict: Dict[NNCFNodeName, bool] = None):
         self._weight_qp_id_per_activation_qp_id = weight_qp_id_per_activation_qp_id
         self._flops_per_weight_qp_id = {}  # type: Dict[QuantizationPointId, float]
         for qp_id, qp in quantizer_setup.quantization_points.items():
@@ -36,6 +37,7 @@ class CompressionRatioCalculator:
                 target_node_name = qp.insertion_point.target_node_name
                 self._flops_per_weight_qp_id[qp_id] = flops_per_weighted_module_node[target_node_name]
         self.maximum_bits_complexity = sum(self._flops_per_weight_qp_id.values()) * self.DEFAULT_NUMBER_OF_BITS
+        self._accelerated_nodes_dict = accelerated_nodes_dict
 
     def run_for_quantizer_setup(self, quantizer_setup: SingleConfigQuantizerSetup) -> float:
         """
@@ -51,6 +53,28 @@ class CompressionRatioCalculator:
             a_qp_id = self._weight_qp_id_per_activation_qp_id[w_qp_id]
             a_qp = quantization_points[a_qp_id]
             aq_num_bits = a_qp.qconfig.num_bits
-            num_bits = max(wq_num_bits, aq_num_bits)
+            num_bits = min(wq_num_bits, aq_num_bits)
+            bits_complexity += num_bits * self._flops_per_weight_qp_id[w_qp_id]
+        return self.maximum_bits_complexity / bits_complexity
+
+    def run_for_quantizer_setup_gap9(self, quantizer_setup: SingleConfigQuantizerSetup) -> float:
+        """
+        Calculates compression ratio for a given quantizer setup with
+        :param: quantizer_setup: setup with information quantization points
+        :returns: compression ratio of mixed-precision model by relation to fully INT8
+        """
+        quantization_points = quantizer_setup.quantization_points
+        weight_qps = list(filter(lambda pair: pair[1].is_weight_quantization_point(), quantization_points.items()))
+        bits_complexity = 0
+        for w_qp_id, w_qp in weight_qps:
+            target_node_name = w_qp.insertion_point.target_node_name
+            wq_num_bits = w_qp.qconfig.num_bits
+            a_qp_id = self._weight_qp_id_per_activation_qp_id[w_qp_id]
+            a_qp = quantization_points[a_qp_id]
+            aq_num_bits = a_qp.qconfig.num_bits
+            if self._accelerated_nodes_dict is not None and not self._accelerated_nodes_dict[target_node_name]:
+                num_bits = max(wq_num_bits, aq_num_bits)
+            else:
+                num_bits = min(wq_num_bits, aq_num_bits)
             bits_complexity += num_bits * self._flops_per_weight_qp_id[w_qp_id]
         return self.maximum_bits_complexity / bits_complexity

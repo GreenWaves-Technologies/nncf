@@ -73,6 +73,7 @@ from nncf.torch.utils import compute_FLOPs_hook
 from nncf.torch.utils import get_all_modules_by_type
 from nncf.torch.utils import get_model_device
 from nncf.torch.utils import get_state_dict_names_with_modules
+from nncf.torch.utils import accelearted_modules_hook_gap9
 from nncf.torch.nested_objects_traversal import objwalk
 
 MODEL_WRAPPED_BY_NNCF_ATTR_NAME = 'nncf_module'
@@ -641,6 +642,27 @@ class NNCFNetwork(nn.Module, PostGraphBuildActing):
         flops_count_dict = self.get_flops_per_module()
         total_MACs_count = sum(v // 2 for v in flops_count_dict.values())
         return total_MACs_count
+
+    def get_accelerated_dict_gap9(self) -> Dict[NNCFNodeName, bool]:
+        """
+        Returns a dictionary of all the modules that can scale the speed with number of bits
+        """
+        model = self
+        acc_dict = {}
+
+        def get_hook(name):
+            return functools.partial(accelearted_modules_hook_gap9, dict_to_save=acc_dict,
+                                     module_node_name=name)
+
+        hook_list = []
+        for nncf_node in self._original_graph.get_all_nodes():
+            node_module = self.get_containing_module(nncf_node.node_name)
+            hook_list.append(node_module.register_forward_hook(get_hook(nncf_node.node_name)))
+        model.do_dummy_forward(force_eval=True)
+
+        for h in hook_list:
+            h.remove()
+        return acc_dict
 
     def get_input_infos(self) -> List[ModelInputInfo]:
         return deepcopy(self.input_infos)

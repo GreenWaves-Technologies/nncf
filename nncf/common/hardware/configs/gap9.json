@@ -1,0 +1,290 @@
+{
+    "target_device": "GAP9",
+    "config": {
+        "quantization": {
+            "act8": {"bits": 8, "mode": ["asymmetric", "symmetric"], "granularity": ["pertensor"]},
+            "act16": {"bits": 16, "mode": ["asymmetric", "symmetric"], "granularity": ["pertensor"]},
+            "w8_pt": {"bits": 8, "mode": ["symmetric"], "granularity": ["pertensor"]},
+            "w8": {"bits": 8, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w7": {"bits": 7, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w6": {"bits": 6, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w5": {"bits": 5, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w4": {"bits": 4, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w3": {"bits": 3, "mode": ["symmetric"], "granularity": ["perchannel"]},
+            "w2": {"bits": 2, "mode": ["symmetric"], "granularity": ["perchannel"]}
+        }
+    },
+    "operations": [
+        {
+            "type": "Convolution",
+            "attributes": {
+                "adjust_padding": true
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": ["w8", "w7", "w6", "w5", "w4", "w3", "w2"]
+            }
+        },
+        {
+            "type": "GroupConvolutionBackpropData",
+            "quantization": {
+                "activations": "act8",
+                "weights": ["w8", "w7", "w6", "w5", "w4", "w3", "w2"]
+            }
+        },
+        {
+            "type": "DepthWiseConvolution",
+            "quantization": {
+                "activations": "act8",
+                "weights": ["w8", "w7", "w6", "w5", "w4", "w3", "w2"]
+            }
+        },
+        {
+            "type": "MatMul",
+            "quantization": {
+                "activations": "act8",
+                "weights": ["w8", "w7", "w6", "w5", "w4", "w3", "w2"]
+            }
+        },
+        {
+            "type": "Add",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Multiply",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Maximum",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Less",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "LessEqual",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Greater",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "GreaterEqual",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Divide",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Minimum",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Equal",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Subtract",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "NotEqual",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "FloorMod",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "LogicalOr",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "LogicalXor",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "LogicalAnd",
+            "attributes": {
+                "scales": "unified"
+            },
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "LogicalNot",
+            "quantization": {
+                "activations": "act8",
+                "weights": "w8"
+            }
+        },
+        {
+            "type": "Power",
+            "quantization": {
+                "activations": "act8"
+            }
+        },
+        {
+            "type": "AvgPool",
+            "quantization": {
+                "activations": "act8"
+            }
+        },
+        {
+            "type": "ReduceMean",
+            "quantization": {
+                "activations": "act8"
+            }
+        },
+        {
+            "type": "MaxPool"
+        },
+        {
+            "type": "ReduceMax"
+        },
+        {
+            "type": "Interpolate",
+            "attributes": {
+                "mode": "linear"
+            },
+            "quantization": {
+                "activations": "act8"
+            }
+        },
+        {
+            "type": "Interpolate",
+            "attributes": {
+                "mode": "nearest"
+            }
+        },
+        {
+            "type": "MVN",
+            "quantization": {
+                "activations": "act8"
+            }
+        },
+        {"type": "Reshape"},
+        {
+            "type": "Concat",
+            "attributes": {
+                "scales": "unified"
+            }
+        },
+        {"type": "Flatten"},
+        {"type": "Squeeze"},
+        {"type": "Unsqueeze"},
+        {"type": "Split"},
+        {"type": "Crop"},
+        {"type": "Transpose"},
+        {"type": "Tile"},
+        {"type": "StridedSlice"},
+
+        {
+            "type": "Embedding",
+            "quantization": {
+                "weights": ["w8_pt"]
+            }
+        },
+        {
+            "type": "EmbeddingBag",
+            "quantization": {
+                "weights": ["w8_pt"]
+            }
+        }
+    ]
+}

@@ -552,9 +552,9 @@ class QuantizationBuilder(PTCompressionAlgorithmBuilder):
                 precision_init_args
             )
         elif precision_init_type == "autoq":
-            if self.hw_config is not None and self.hw_config.target_device != HWConfigType.VPU.value:
-                raise ValueError("Unsupported device ({}). Automatic Precision Initialization only supports for "
-                                 "target_device NONE or VPU".format(self.hw_config.target_device))
+            # if self.hw_config is not None and self.hw_config.target_device != HWConfigType.VPU.value:
+            #     raise ValueError("Unsupported device ({}). Automatic Precision Initialization only supports for "
+            #                      "target_device NONE or VPU".format(self.hw_config.target_device))
             try:
                 precision_init_args = self.config.get_extra_struct(AutoQPrecisionInitArgs)
             except KeyError as e:

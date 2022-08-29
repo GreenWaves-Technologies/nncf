@@ -1,5 +1,5 @@
 """
- Copyright (c) 2022 Intel Corporation
+ Copyright (c) 2020 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -39,6 +39,7 @@ class HWConfigType(Enum):
     CPU = 'CPU'
     GPU = 'GPU'
     VPU = 'VPU'
+    GAP9 = 'GAP9'
 
     @staticmethod
     def from_str(config_value: str) -> 'HWConfigType':
@@ -48,6 +49,8 @@ class HWConfigType(Enum):
             return HWConfigType.GPU
         if config_value == HWConfigType.VPU.value:
             return HWConfigType.VPU
+        if config_value == HWConfigType.GAP9.value:
+            return HWConfigType.GAP9
         raise RuntimeError('Unknown HW config type string')
 
 
@@ -56,6 +59,7 @@ HW_CONFIG_TYPE_TARGET_DEVICE_MAP = {
     'CPU': HWConfigType.CPU.value,
     'VPU': HWConfigType.VPU.value,
     'GPU': HWConfigType.GPU.value,
+    'GAP9': HWConfigType.GAP9.value,
     'TRIAL': None
 }
 
@@ -73,7 +77,8 @@ class HWConfig(list, ABC):
     TYPE_TO_CONF_NAME_DICT = {
         HWConfigType.CPU: 'cpu.json',
         HWConfigType.VPU: 'vpu.json',
-        HWConfigType.GPU: 'gpu.json'
+        HWConfigType.GPU: 'gpu.json',
+        HWConfigType.GAP9: 'gap9.json'
     }
 
     def __init__(self):

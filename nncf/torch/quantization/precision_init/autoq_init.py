@@ -1,5 +1,5 @@
 """
- Copyright (c) 2022 Intel Corporation
+ Copyright (c) 2021 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -195,6 +195,8 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
     def _search(self, agent: 'DDPG', env: 'QuantizationEnv') -> Tuple[pd.Series, float]:
         # pylint: disable=too-many-branches,too-many-statements
         best_reward = -math.inf
+        best_accuracy = -math.inf
+        best_pol_accuracy = -math.inf
         episode = 0
         episode_reward = 0.
         observation = None
@@ -297,7 +299,8 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
                 if final_reward > best_reward:
                     best_reward = final_reward
                     best_policy = deepcopy(env.master_df['action'])
-                    info_tuple = (episode, best_reward, info['accuracy'], info['model_ratio'], info['bop_ratio'])
+                    best_pol_accuracy = info['accuracy']
+                    info_tuple = (episode, best_reward, info['accuracy'], info['model_ratio'], info['bop_ratio'], info['gap9_bop_ratio'])
                     self._dump_best_episode(info_tuple, bit_stats_df, env)
                     log_str = '## Episode[{}] New best policy: {}, reward: {:.3f}, \
                     acc: {:.3f}, model_ratio: {:.3f}, BOP_ratio: {:.3f}'\
@@ -305,9 +308,12 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
                                 info['accuracy'], info['model_ratio'],  info['bop_ratio'])
                     logger.info("\033[92m {}\033[00m" .format(log_str))
 
+                if info['accuracy'] > best_accuracy:
+                    best_accuracy = info['accuracy']
+
                 episodic_info_tuple = (episode, final_reward, best_reward,
-                                       info['accuracy'], info['model_ratio'], info['bop_ratio'],
-                                       value_loss, policy_loss, delta)
+                                       info['accuracy'], info['model_ratio'], info['bop_ratio'], info['gap9_bop_ratio'],
+                                       value_loss, policy_loss, delta, best_accuracy, best_pol_accuracy)
                 self._dump_episode(episodic_info_tuple, bit_stats_df, env, agent)
 
                 episode_elapsed = time.time() - episode_start_ts
@@ -346,7 +352,7 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
                       episodic_info_tuple: Tuple, bit_stats_df: pd.DataFrame,
                       env: 'QuantizationEnv', agent: 'DDPG'):
         if self._dump_autoq_data:
-            episode, final_reward, _, accuracy, model_ratio, bop_ratio, _, _, _ = episodic_info_tuple
+            episode, final_reward, _, accuracy, model_ratio, bop_ratio, gap9_bop_ratio, _, _, _, _, _ = episodic_info_tuple
 
             current_bitwidth_per_scope = self.get_bitwidth_per_scope(
                 env.qctrl.get_quantizer_setup_for_current_state())
@@ -368,7 +374,7 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
                     osp.join(self.dump_dir, "policy_per_episode.csv"), index_label="nodestr")
 
             # log current episode policy and feedback as text
-            info_tuple = (episode, final_reward, accuracy, model_ratio, bop_ratio)
+            info_tuple = (episode, final_reward, accuracy, model_ratio, bop_ratio, gap9_bop_ratio)
             current_strategy_string = self._generate_tensorboard_logging_string(
                 bit_stats_df, env.master_df, info_tuple, env.skip_constraint)
 
@@ -395,14 +401,18 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
 
     def _add_to_tensorboard(self, tb_writer: 'SummaryWriter', log_tuple: Tuple):
         episode, final_reward, best_reward, \
-            accuracy, model_ratio, bop_ratio, \
-                value_loss, policy_loss, delta = log_tuple
+            accuracy, model_ratio, bop_ratio, gap9_bop_ratio, \
+                value_loss, policy_loss, delta, \
+                    best_accuracy, best_pol_accuracy = log_tuple
 
         tb_writer.add_scalar('AutoQ/reward/last', final_reward, episode)
         tb_writer.add_scalar('AutoQ/reward/best', best_reward, episode)
         tb_writer.add_scalar('AutoQ/accuracy', accuracy, episode)
+        tb_writer.add_scalar('AutoQ/accuracy/best', best_accuracy, episode)
+        tb_writer.add_scalar('AutoQ/accuracy/best_policy', best_pol_accuracy, episode)
         tb_writer.add_scalar('AutoQ/model_ratio', model_ratio, episode)
         tb_writer.add_scalar('AutoQ/bop_ratio', bop_ratio, episode)
+        tb_writer.add_scalar('AutoQ/gap9_bop_ratio', gap9_bop_ratio, episode)
         tb_writer.add_scalar('AutoQ/agent/value_loss', value_loss, episode)
         tb_writer.add_scalar('AutoQ/agent/policy_loss', policy_loss, episode)
         tb_writer.add_scalar('AutoQ/agent/delta', delta, episode)
@@ -412,12 +422,12 @@ class AutoQPrecisionInitializer(BasePrecisionInitializer):
                                              bit_stats_df: pd.DataFrame, master_df: pd.DataFrame,
                                              info_tuple: Tuple, skip_constraint=False) -> str:
         qdf = master_df # For readibility
-        episode, reward, accuracy, model_ratio, bop_ratio = info_tuple
+        episode, reward, accuracy, model_ratio, bop_ratio, gap9_bop_ratio = info_tuple
 
         text_string = bit_stats_df.to_markdown() + "\n\n\n"
         text_string += "Episode: {:>4}, Reward: {:.3f}, ".format(episode, reward)
-        text_string += "Accuracy: {:.3f}, Model_Size_Ratio: {:.3f}, BOP_Ratio: {:.3f}\n\n\n"\
-            .format(accuracy, model_ratio, bop_ratio)
+        text_string += "Accuracy: {:.3f}, Model_Size_Ratio: {:.3f}, BOP_Ratio: {:.3f}, GAP9_BOP_Ratio: {:.3f}\n\n\n"\
+            .format(accuracy, model_ratio, bop_ratio, gap9_bop_ratio)
 
         for _, row_id in enumerate(qdf.index.tolist()):
             Qtype = '(WQ)' if qdf.is_wt_quantizer[row_id] else '(AQ)'

@@ -341,6 +341,9 @@ QUANTIZATION_INITIALIZER_SCHEMA = {
                                                                             "mixed-precision environment metadata.",
                                                                 default=True),
                     "bitwidth_assignment_mode": BITWIDTH_ASSIGNMENT_MODE_SCHEMA,
+                    "skip_constraint": with_attributes(BOOLEAN,
+                                                       description="Use size contraint for autoq algorithm",
+                                                       default=False),
                 },
                 "additionalProperties": False,
             }
@@ -864,7 +867,7 @@ ACCURACY_AWARE_MODES_VS_SCHEMA = {
 
 TARGET_DEVICE_SCHEMA = {
     "type": "string",
-    "enum": ["ANY", "CPU", "GPU", "VPU", "TRIAL"]
+    "enum": ["ANY", "CPU", "GPU", "VPU", "TRIAL", "GAP9"]
 }
 
 

@@ -252,6 +252,18 @@ def compute_FLOPs_hook(module, input_, output, dict_to_save, module_node_name: N
     dict_to_save[module_node_name] = 2 * mac_count
 
 
+def accelearted_modules_hook_gap9(module, input_, output, dict_to_save, module_node_name: NNCFNodeName):
+    if isinstance(module, (nn.Conv1d, nn.ConvTranspose1d, nn.Conv2d, nn.ConvTranspose2d, nn.Conv3d,
+                           nn.ConvTranspose3d, nn.Linear)):
+        ks = module.weight.data.shape
+        if isinstance(module, nn.Conv2d) and ks[-1] == 3 and ks[-2] == 3:
+            dict_to_save[module_node_name] = True
+        else:
+            dict_to_save[module_node_name] = False
+    else:
+        return
+
+
 def add_domain(name_operator: str) -> str:
     from nncf.torch.compression_method_api import DOMAIN_CUSTOM_OPS_NAME
     return DOMAIN_CUSTOM_OPS_NAME + "::" + name_operator

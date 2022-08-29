@@ -1,5 +1,5 @@
 """
- Copyright (c) 2022 Intel Corporation
+ Copyright (c) 2021 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -148,7 +148,7 @@ class QuantizationEnv:
 
         # Check and only proceed if target device is supported by Q.Env
         self.hw_cfg_type = hw_config_type
-        assert self.hw_cfg_type in [None, HWConfigType.VPU]
+        assert self.hw_cfg_type in [None, HWConfigType.VPU, HWConfigType.GAP9]
 
         # Set target compression ratio
         self.compression_ratio = params.compression_ratio
@@ -170,9 +170,11 @@ class QuantizationEnv:
         # Configure search space for precision according to target device
         if self.hw_cfg_type is None:
             self.model_bitwidth_space = params.bits
-        elif self.hw_cfg_type is HWConfigType.VPU:
+        else:
+            logger.info("Getting bw space from HW config")
             self.model_bitwidth_space = self._hw_precision_constraints.get_all_unique_bitwidths()
         self.model_bitwidth_space = sorted(list(self.model_bitwidth_space))
+        logger.info(f"Bitwidth space: {self.model_bitwidth_space}")
 
         # Create mapping of QuantizerId to the space of the corresponding quantizer's allowed qconfigs
         #pylint:disable=line-too-long
@@ -242,7 +244,8 @@ class QuantizationEnv:
         self.compression_ratio_calculator = CompressionRatioCalculator(
             self.qmodel.get_flops_per_module(),
             self.qctrl.get_quantizer_setup_for_current_state(),
-            self.qctrl.groups_of_adjacent_quantizers.weight_qp_id_per_activation_qp_id)
+            self.qctrl.groups_of_adjacent_quantizers.weight_qp_id_per_activation_qp_id,
+            accelerated_nodes_dict=self.qmodel.get_accelerated_dict_gap9())
 
         # Evaluate and store metric score of pretrained model
         self._evaluate_pretrained_model()
@@ -519,14 +522,14 @@ class QuantizationEnv:
 
         return self.master_df['action'].tolist()
 
-    def reward(self, acc: float, model_ratio: float) -> float:
+    def reward(self, acc: float, model_ratio: float, model_bflop_ratio: float) -> float:
         def order_of_magnitude(number):
             return np.floor(np.math.log(abs(number), 10))
 
         if self.pretrained_score == 0:
             return acc
         order = order_of_magnitude(self.pretrained_score)
-        return acc*(10**(-order))
+        return (acc*(10**(-order)) * 0.1) + (model_bflop_ratio * 0.9)
 
     def step(self, action: Union[int, float]) -> Tuple:
         currently_processed_qconf_idx = len(self.collected_strategy)
@@ -599,13 +602,16 @@ class QuantizationEnv:
 
         current_model_bop_ratio = self.compression_ratio_calculator.run_for_quantizer_setup(
             self.qctrl.get_quantizer_setup_for_current_state())
+        current_model_bop_ratio_gap9 = self.compression_ratio_calculator.run_for_quantizer_setup_gap9(
+            self.qctrl.get_quantizer_setup_for_current_state())
 
-        reward = self.reward(quantized_score, current_model_ratio)
+        reward = self.reward(quantized_score, current_model_ratio, current_model_bop_ratio_gap9)
 
         info_set = {'model_ratio': current_model_ratio,
                     'accuracy': quantized_score,
                     'model_size': current_model_size,
-                    'bop_ratio': current_model_bop_ratio}
+                    'bop_ratio': current_model_bop_ratio,
+                    'gap9_bop_ratio': current_model_bop_ratio_gap9}
 
         obs = self.get_normalized_obs(len(collected_strategy) - 1)
         done = True
